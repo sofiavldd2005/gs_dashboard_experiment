@@ -9,10 +9,11 @@ use axum::{
     Json, Router,
 };
 
-use serde::{Deserialize, Serialize};
 use serde_json;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
+use tower_http::services::ServeFile;
+
 mod protocol;
 
 struct AppState {
@@ -44,6 +45,7 @@ async fn main() {
     });
 
     let app = Router::new()
+        .nest_service("/", ServeFile::new("html/index.html")) // Standard way in Axum 0.7
         .route("/ws", get(ws_handler))
         .route("/mock-ingest", post(mock_ingest))
         .with_state(shared_state);
@@ -71,19 +73,37 @@ async fn ws_handler(ws: WebSocketUpgrade, State(state): State<Arc<AppState>>) ->
 
 async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
     let mut telemetry_rx = state.telemetry_tx.subscribe();
+
     loop {
-        tokio::select! { //waiting on the two concurrent branchs
-        // Forward Telemetry -> Browser
-                    Ok(data) = telemetry_rx.recv() => {
-                        let msg = serde_json::to_string(&data).unwrap();
-                        if socket.send(Message::Text(msg)).await.is_err() {
-                            break; // Client disconnected
+        tokio::select! {
+            // Forward Telemetry -> Browser
+            res = telemetry_rx.recv() => {
+                match res {
+                    Ok(data) => {
+                        if let Ok(msg) = serde_json::to_string(&data) {
+                            if socket.send(Message::Text(msg)).await.is_err() {
+                                break; // Client disconnected, exit loop
+                            }
                         }
                     }
-                    // Receive Command <- Browser
-                    Some(Ok(Message::Text(text))) = socket.recv() => {
+                    Err(broadcast::error::RecvError::Lagged(_)) => {
+                        // We are receiving data faster than we can send it.
+                        // We just continue to the next loop to get the newest data.
+                        continue;
+                    }
+                    Err(_) => break, // Channel closed
+                }
+            }
+
+            // Receive Command <- Browser
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Text(text))) => {
                         let _ = state.command_tx.send(text).await;
                     }
+                    _ => break, // Socket closed or error
                 }
+            }
+        }
     }
 }

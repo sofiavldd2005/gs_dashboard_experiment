@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>University Rocketry - Ground Station</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: #eee; margin: 20px; }
+        .dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .card { background: #2d2d2d; padding: 20px; border-radius: 8px; border-left: 4px solid #007acc; }
+        .label { font-size: 0.8em; color: #aaa; text-transform: uppercase; }
+        .value { font-size: 1.5em; font-weight: bold; margin-top: 5px; }
+        .status-connected { color: #4caf50; }
+        .status-disconnected { color: #f44336; }
+        .controls { margin-top: 30px; padding: 20px; background: #252525; border-radius: 8px; }
+        button { padding: 10px 20px; margin-right: 10px; cursor: pointer; background: #007acc; border: none; color: white; border-radius: 4px; }
+        button:hover { background: #005f99; }
+        button.abort { background: #d32f2f; }
+    </style>
+</head>
+<body>
+
+    <h1>🚀 Rocketry Ground Station</h1>
+    <div id="connection-status" class="status-disconnected">Status: Disconnected</div>
+    <hr>
+
+    <div class="dashboard">
+        <div class="card"><div class="label">Attitude (Y/P/R)</div><div class="value" id="attitude">0 / 0 / 0</div></div>
+        <div class="card"><div class="label">Temperature</div><div class="value" id="temp">0°C</div></div>
+        <div class="card"><div class="label">Pressure</div><div class="value" id="press">0 hPa</div></div>
+        <div class="card"><div class="label">State</div><div class="value" id="state">IDLE</div></div>
+    </div>
+
+    <div class="controls">
+        <h3>Manual Commands</h3>
+        <button onclick="sendCommand('ARM')">ARM</button>
+        <button onclick="sendCommand('LAUNCH')">LAUNCH</button>
+        <button onclick="sendCommand('PING')">PING</button>
+        <button class="abort" onclick="sendCommand('ABORT')">ABORT</button>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('connection-status');
+        let socket;
+
+        function connect() {
+            // Adjust this URL to match your Rust server's IP
+            const server Ip = "192.168.50.1"
+            socket = new WebSocket("ws://${serverIp}:3000/ws");
+
+            socket.onopen = () => {
+                statusEl.innerText = "Status: Connected";
+                statusEl.className = "status-connected";
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                // Update the UI with data from your Rust 'Telemetry' struct
+                document.getElementById('attitude').innerText = 
+                    `${data.Yaw.toFixed(1)}° / ${data.Pitch.toFixed(1)}° / ${data.Roll.toFixed(1)}°`;
+                document.getElementById('temp').innerText = `${data.Temperature}°C`;
+                document.getElementById('press').innerText = `${data.Pressure} hPa`;
+                document.getElementById('state').innerText = data.State;
+            };
+
+            socket.onclose = () => {
+                statusEl.innerText = "Status: Disconnected (Retrying...)";
+                statusEl.className = "status-disconnected";
+                setTimeout(connect, 2000); // Auto-reconnect
+            };
+        }
+
+        function sendCommand(cmd) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                socket.send(cmd);
+                console.log("Sent command:", cmd);
+            }
+        }
+
+        connect();
+    </script>
+</body>
+</html>
