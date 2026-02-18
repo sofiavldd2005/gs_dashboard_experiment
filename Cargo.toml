@@ -1,0 +1,12 @@
+[package]
+name = "ground_station_backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+
+axum = { version = "0.7.0", features = ["ws"] }
+tokio = { version = "1.49.0", features = ["full"] }    #for async rust
+serde = { version = "1.0.228", features = ["derive"] } # for deserialy CSV Data
+csv = { version = "1.4.0" }                            #csv reader and writer
+serde_json = "1.0.149"
