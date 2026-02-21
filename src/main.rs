@@ -1,29 +1,18 @@
 //! user imports
 use axum::{
-    extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
-        State,
-    },
-    response::IntoResponse,
+    extract::State,
     routing::{get, post},
     Json, Router,
 };
 
-use serde_json;
 use std::sync::Arc;
 use tokio::sync::{broadcast, mpsc};
 use tower_http::services::ServeFile;
 
 mod protocol;
+mod sockets_handler;
+use sockets_handler::{ws_handler, AppState};
 
-struct AppState {
-    // Broadcasts telemetry to all connected WebSocket clients
-    // When telemetry comes in, we shout it out to every connected dashboard
-    telemetry_tx: broadcast::Sender<protocol::Telemetry>,
-    // Sends commands from Web interface to rocket : any dashboards can send commands,
-    // but they all funnel down to one single "Radio Link" task that talks to the rocke
-    command_tx: mpsc::Sender<String>,
-}
 #[tokio::main]
 async fn main() {
     println!("Hello, world!");
@@ -64,46 +53,4 @@ async fn mock_ingest(
     // It doesn't care who is listening; it just broadcasts the signal
     let _ = state.telemetry_tx.send(payload);
     "Data Received"
-}
-
-// 2. WebSocket Upgrade
-async fn ws_handler(ws: WebSocketUpgrade, State(state): State<Arc<AppState>>) -> impl IntoResponse {
-    ws.on_upgrade(|socket| handle_socket(socket, state))
-}
-
-async fn handle_socket(mut socket: WebSocket, state: Arc<AppState>) {
-    let mut telemetry_rx = state.telemetry_tx.subscribe();
-
-    loop {
-        tokio::select! {
-            // Forward Telemetry -> Browser
-            res = telemetry_rx.recv() => {
-                match res {
-                    Ok(data) => {
-                        if let Ok(msg) = serde_json::to_string(&data) {
-                            if socket.send(Message::Text(msg)).await.is_err() {
-                                break; // Client disconnected, exit loop
-                            }
-                        }
-                    }
-                    Err(broadcast::error::RecvError::Lagged(_)) => {
-                        // We are receiving data faster than we can send it.
-                        // We just continue to the next loop to get the newest data.
-                        continue;
-                    }
-                    Err(_) => break, // Channel closed
-                }
-            }
-
-            // Receive Command <- Browser
-            msg = socket.recv() => {
-                match msg {
-                    Some(Ok(Message::Text(text))) => {
-                        let _ = state.command_tx.send(text).await;
-                    }
-                    _ => break, // Socket closed or error
-                }
-            }
-        }
-    }
 }

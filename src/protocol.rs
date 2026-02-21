@@ -1,24 +1,24 @@
 use serde::{Deserialize, Serialize};
 
 ///Struct of data to be received from the rocket
-#[derive(Deserialize, Serialize, Debug, Clone)]
+#[derive(Deserialize, Serialize, Debug, Clone, Default)]
 pub struct Telemetry {
-    pub Yaw: f32,
-    pub Pitch: f32,
-    pub Roll: f32,
-    pub Temperature: u16,
-    pub Pressure: u16,
-    pub AccelZ: f32,
-    pub GyroX: f32,
-    pub GyroY: f32,
-    pub GyroZ: f32,
-    pub QuatX: f32,
-    pub QuatY: f32,
-    pub QuatZ: f32,
-    pub QuatS: f32,
-    pub Lat: f32,
-    pub Lon: f32,
-    pub State: u8,
+    pub yaw: f32,
+    pub pitch: f32,
+    pub roll: f32,
+    pub temperature: u16,
+    pub pressure: u16,
+    pub accel_z: f32,
+    pub gyro_x: f32,
+    pub gyro_y: f32,
+    pub gyro_z: f32,
+    pub quat_x: f32,
+    pub quat_y: f32,
+    pub quat_z: f32,
+    pub quat_s: f32,
+    pub lat: f32,
+    pub lon: f32,
+    pub state: u8,
 }
 
 ///Enum of the CMDS for future use, possible commands to be sent from the gs

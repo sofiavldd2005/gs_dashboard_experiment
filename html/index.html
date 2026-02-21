@@ -44,8 +44,8 @@
 
         function connect() {
             // Adjust this URL to match your Rust server's IP
-            const server Ip = "192.168.50.1"
-            socket = new WebSocket("ws://${serverIp}:3000/ws");
+            const serverIp = '192.168.50.1'
+            socket = new WebSocket(`ws://${serverIp}:3000/ws`);
 
             socket.onopen = () => {
                 statusEl.innerText = "Status: Connected";
@@ -57,10 +57,10 @@
                 
                 // Update the UI with data from your Rust 'Telemetry' struct
                 document.getElementById('attitude').innerText = 
-                    `${data.Yaw.toFixed(1)}° / ${data.Pitch.toFixed(1)}° / ${data.Roll.toFixed(1)}°`;
-                document.getElementById('temp').innerText = `${data.Temperature}°C`;
-                document.getElementById('press').innerText = `${data.Pressure} hPa`;
-                document.getElementById('state').innerText = data.State;
+                    `${data.yaw.toFixed(1)}° / ${data.pitch.toFixed(1)}° / ${data.roll.toFixed(1)}°`;
+                document.getElementById('temp').innerText = `${data.temperature}°C`;
+                document.getElementById('press').innerText = `${data.pressure} hPa`;
+                document.getElementById('state').innerText = data.state;
             };
 
             socket.onclose = () => {
